@@ -3,9 +3,8 @@
 # =============== CONFIG ===============
 ROTATE_INTERVAL=1800  # 30 minutes
 SHOW_IP=true          # Set to false to disable IP check
-TMP_DIR="/tmp/proxy_rotation"
-mkdir -p "$TMP_DIR"
-PROXY_FILE="$TMP_DIR/proxies.txt"
+BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROXY_DIR="$BASE_DIR/proxies"
 
 # ============== FUNCTIONS ==============
 function choose_proxy_type() {
@@ -24,7 +23,7 @@ function choose_proxy_type() {
 }
 
 function rotate_proxy_loop() {
-    local file="$TMP_DIR/${PROTO}.txt"
+    local file="$PROXY_DIR/${PROTO}.txt"
     local proxy_list
     proxy_list=()
     while IFS= read -r line; do
@@ -39,14 +38,16 @@ function rotate_proxy_loop() {
     echo "Starting proxy rotation every $ROTATE_INTERVAL seconds using ${PROTO} proxies..."
     while true; do
         PROXY=${proxy_list[$RANDOM % ${#proxy_list[@]}]}
-        export http_proxy="$PROTO://$PROXY"
-        export https_proxy="$PROTO://$PROXY"
-
-        echo "Proxy set to: $PROTO://$PROXY"
+        export http_proxy="$PROXY"
+        export https_proxy="$PROXY"
+        export all_proxy="$PROXY"
+        
+        echo "Proxy set to: $PROXY"
 
         if [ "$SHOW_IP" = true ]; then
             echo -n "IP: "
-            curl -s --proxy "$PROTO://$PROXY" ifconfig.me || echo "Failed..."
+            curl -s --proxy "$PROXY" --max-time 10 ifconfig.me || echo "Proxy failed!"
+
         fi
 
         sleep "$ROTATE_INTERVAL"
@@ -55,6 +56,5 @@ function rotate_proxy_loop() {
 
 # ============== MAIN SCRIPT ==============
 choose_proxy_type
-fetch_proxies "$PROTO"
 rotate_proxy_loop
 
